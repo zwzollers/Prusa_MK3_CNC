@@ -1,5 +1,5 @@
 use std::f64::{INFINITY, NEG_INFINITY};
-use dxf::Point;
+use dxf::{Point, point};
 use clap::Parser;
 
 mod shape;
@@ -45,12 +45,17 @@ fn main() {
     let mut gcode = Gcode::default();
 
     gcode.push(Command::G90);
+    gcode.push(Command::G1 { x:None, y: None, z: Some(50.0), f: Some(5000.0) });
     gcode.push(Command::G28 { x: true, y: true, z: false });
     gcode.feedrate = 5000.0;
 
+    gcode.push(Command::G1 { x: Some(0.0), y: Some(0.0), z: Some(2.0), f: Some(5000.0) });
+
     for shape in &cu_polylines.shapes {
-        gcode.push_shape(shape);
+        gcode.push_shape(shape, point!(100,100));
     }
+
+    gcode.push(Command::G1 { x: None, y: None, z: Some(50.0), f: Some(10000.0) });
 
     gcode.push(Command::M84);
 

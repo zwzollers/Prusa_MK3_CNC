@@ -95,9 +95,9 @@ impl Polyline {
 
         for item in &shape.obj {
             let mut points = match item.dxf_entity {
-                EntityType::Circle(ref circle) => arc_to_lines(&circle.center, circle.radius, 0.0, 360.0, 30),
+                EntityType::Circle(ref circle) => arc_to_lines(&circle.center, circle.radius, 0.0, 360.0, 60),
                 EntityType::Line(ref line) => vec![line.p1.clone(), line.p2.clone()],
-                EntityType::Arc(ref arc) => arc_to_lines(&arc.center, arc.radius, arc.start_angle, arc.end_angle, 30),
+                EntityType::Arc(ref arc) => arc_to_lines(&arc.center, arc.radius, arc.start_angle, arc.end_angle, 60),
                 _ => panic!(),
             };
 

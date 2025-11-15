@@ -1,3 +1,5 @@
+use dxf::Point;
+
 use super::polyline::Polyline;
 use std::fs::File;
 use std::io::prelude::*;
@@ -23,10 +25,13 @@ impl Gcode {
         self.cmds.push(cmd);
     }
 
-    pub fn push_shape(&mut self, shape: &Polyline) {
+    pub fn push_shape(&mut self, shape: &Polyline, offset: Point) {
+        self.push(Command::G1 { x: Some(shape.points[0].x + offset.x), y: Some(shape.points[0].y + offset.y), z: None, f: Some(self.feedrate) });
+        self.push(Command::G1 { x: None, y: None, z: Some(0.0), f: Some(self.feedrate) });
         for p in &shape.points {
-            self.push(Command::G1 { x: Some(p.x), y: Some(p.y), z: None, f: Some(self.feedrate) });
+            self.push(Command::G1 { x: Some(p.x + offset.x), y: Some(p.y + offset.y), z: None, f: Some(self.feedrate) });
         }
+        self.push(Command::G1 { x: None, y: None, z: Some(2.0), f: Some(self.feedrate) });
     }
 }
 
