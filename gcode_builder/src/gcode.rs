@@ -25,12 +25,19 @@ impl Gcode {
         self.cmds.push(cmd);
     }
 
-    pub fn push_shape(&mut self, shape: &Polyline, offset: Point) {
+    pub fn push_shape(&mut self, shape: &Polyline, offset: &Point) {
         self.push(Command::G1 { x: Some(shape.points[0].x + offset.x), y: Some(shape.points[0].y + offset.y), z: None, f: Some(self.feedrate) });
         self.push(Command::G1 { x: None, y: None, z: Some(0.0), f: Some(self.feedrate) });
         for p in &shape.points {
             self.push(Command::G1 { x: Some(p.x + offset.x), y: Some(p.y + offset.y), z: None, f: Some(self.feedrate) });
         }
+        self.push(Command::G1 { x: None, y: None, z: Some(2.0), f: Some(self.feedrate) });
+    }
+
+    pub fn push_line(&mut self, line: (&Point, &Point), offset: &Point) {
+        self.push(Command::G1 { x: Some(line.0.x + offset.x), y: Some(line.0.y + offset.y), z: None, f: Some(self.feedrate) });
+        self.push(Command::G1 { x: None, y: None, z: Some(0.0), f: Some(self.feedrate) });
+        self.push(Command::G1 { x: Some(line.1.x + offset.x), y: Some(line.1.y + offset.y), z: None, f: Some(self.feedrate) });
         self.push(Command::G1 { x: None, y: None, z: Some(2.0), f: Some(self.feedrate) });
     }
 }

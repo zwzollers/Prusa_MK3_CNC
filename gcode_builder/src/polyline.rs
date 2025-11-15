@@ -5,6 +5,7 @@ use dxf::entities::EntityType;
 use dxf::point;
 use dxf::{Point};
 
+use crate::polyline;
 use crate::shape::DXF;
 
 use super::shape::Shape;
@@ -48,6 +49,22 @@ impl Polylines {
         pls
     }
 
+    pub fn find_intersections(&self, line: (&Point, &Point)) -> Vec<Point> {
+        let mut points = Vec::new();
+
+        for pl in &self.shapes {
+            for i in 0..pl.points.len()-1 {
+                let p1 = &pl.points[i];
+                let p2 = &pl.points[i+1];
+
+                if let Some(point) = line_intersect((p1,p2), line) {
+                    points.push(point);
+                }
+            }
+        }
+        points
+    }
+
     /// marks the nest level of each polyline in context to every other polyline
     fn heirachy(&mut self) {
         for pl_test in 0..self.shapes.len() {
@@ -57,7 +74,7 @@ impl Polylines {
 
             let mut nest_cnt = 0;
 
-            for pl in &self.shapes {
+            for pl in &self.shapes.iter().enumerate().filter(|&(i, _)| i != pl_test).map(|(_, v)| v).collect() as &Vec<&Polyline> {
 
                 // number of intersections per polyline
                 let mut int_cnt = 0;
@@ -66,7 +83,7 @@ impl Polylines {
                     let p1 = &pl.points[i];
                     let p2 = &pl.points[i+1];
 
-                    if line_intersect((p1,p2), test_line) {
+                    if line_intersect((p1,p2), test_line).is_some() {
                         int_cnt += 1;
                     }
                 }
@@ -76,10 +93,11 @@ impl Polylines {
                     nest_cnt += 1;
                 }
             }
-
-            // nest count is 1 too high casue it intersects with itself
-            self.shapes[pl_test].nest = Some(nest_cnt-1);
+            self.shapes[pl_test].nest = Some(nest_cnt);
         }
+    }
+
+    fn find_normals(&mut self) {
     }
 }
 
@@ -87,11 +105,12 @@ impl Polylines {
 pub struct Polyline {
     pub points: Vec<Point>,
     nest: Option<usize>,
+    normal: Option<Point>,
 }
 
 impl Polyline {
     pub fn from_shape(shape: &Shape) -> Self {
-        let mut pl = Polyline{points: Vec::new(), nest:None};
+        let mut pl = Polyline{points: Vec::new(), nest:None, normal:None};
 
         for item in &shape.obj {
             let mut points = match item.dxf_entity {
@@ -183,21 +202,35 @@ fn arc_to_lines(center: &Point, radius: f64, start: f64, end:f64, segments: u32)
 }
 
 /// checks if two lines intersect including the endpoints
-fn line_intersect(l1: (&Point, &Point), l2: (&Point, &Point)) -> bool {
+fn line_intersect(l1: (&Point, &Point), l2: (&Point, &Point)) -> Option<Point> {
 
-    fn cross(a: Point, b: Point) -> f64{
+    fn cross(a: &Point, b: &Point) -> f64{
         a.x*b.y - a.y*b.x
     }
 
     fn orient(a: &Point, b: &Point, c: &Point) -> f64 {
-        cross(point!(b.x-a.x, b.y-a.y), point!(a.x-c.x, a.y-c.y))
+        cross(&point!(b.x-a.x, b.y-a.y), &point!(a.x-c.x, a.y-c.y))
     }
 
-    let oa = orient(l2.0, l2.1, l1.0);
-    let ob = orient(l2.0, l2.1, l1.1);
-    let oc = orient(l1.0, l1.1, l2.0);
-    let od = orient(l1.0, l1.1, l2.1);
+    let d1 = point!(l1.1.x-l1.0.x, l1.1.y-l1.0.y);
+    let d2 = point!(l2.1.x-l2.0.x, l2.1.y-l2.0.y);
 
-    oa*ob <= 0.0 && oc*od <= 0.0
+    let d1xd2 = cross(&d1, &d2);
+
+    let t1 = cross(&point!(l2.0.x-l1.0.x, l2.0.y-l1.0.y), &d2) / d1xd2;
+    let t2 = cross(&point!(l2.0.x-l1.0.x, l2.0.y-l1.0.y), &d1) / d1xd2;
+
+    if d1xd2 != 0.0 && t1 >= 0.0 && t1 <= 1.0 && t2 >= 0.0 && t2 <= 1.0 {
+        return Some(point!(l1.0.x + d1.x*t1, l1.0.y + d1.y*t1));
+    }
+
+    None
+
+    // let oa = orient(l2.0, l2.1, l1.0);
+    // let ob = orient(l2.0, l2.1, l1.1);
+    // let oc = orient(l1.0, l1.1, l2.0);
+    // let od = orient(l1.0, l1.1, l2.1);
+
+    // oa*ob <= 0.0 && oc*od <= 0.0
 
 }
