@@ -5,7 +5,6 @@ use dxf::entities::EntityType;
 use dxf::point;
 use dxf::{Point};
 
-use crate::polyline;
 use crate::shape::DXF;
 
 use super::shape::Shape;
@@ -49,6 +48,7 @@ impl Polylines {
         pls
     }
 
+    /// returns a list of intersection points between a line and all polylines
     pub fn find_intersections(&self, line: (&Point, &Point)) -> Vec<Point> {
         let mut points = Vec::new();
 
@@ -97,20 +97,17 @@ impl Polylines {
         }
     }
 
-    fn find_normals(&mut self) {
-    }
 }
 
 #[derive(Debug)]
 pub struct Polyline {
     pub points: Vec<Point>,
     nest: Option<usize>,
-    normal: Option<Point>,
 }
 
 impl Polyline {
     pub fn from_shape(shape: &Shape) -> Self {
-        let mut pl = Polyline{points: Vec::new(), nest:None, normal:None};
+        let mut pl = Polyline{points: Vec::new(), nest:None};
 
         for item in &shape.obj {
             let mut points = match item.dxf_entity {
@@ -168,6 +165,71 @@ impl Polyline {
 
         (min, max)
     }
+
+    pub fn length(&self) -> f64 {
+        let mut len = 0.0;
+
+        if self.points.len() == 0 {
+            return 0.0
+        }
+
+        for i in 0..self.points.len()-1 {
+            len += ((self.points[i+1].x - self.points[i].x).powi(2) + (self.points[i+1].y - self.points[i].y).powi(2)).sqrt();
+        }
+
+        len
+    }
+
+    pub fn offset(&self, offset: f64) -> Self{
+
+        fn dot(a: &Point, b: &Point) -> f64{
+            a.x*b.x + a.y*b.y
+        }
+
+        fn det(a: &Point, b: &Point) -> f64{
+            a.x*b.y - a.y*b.x
+        }
+
+        let mut points = Vec::new();
+
+        for i in 0..self.points.len()-1 {
+            let p0 = &self.points[(i as i32-1).rem_euclid(self.points.len()as i32 -1)as usize];
+            let p1 = &self.points[(i as i32+0).rem_euclid(self.points.len()as i32 -1)as usize];
+            let p2 = &self.points[(i as i32+1).rem_euclid(self.points.len()as i32 -1)as usize];
+
+            let v1 = point!(p0.x - p1.x, p0.y - p1.y);
+            let v2 = point!(p2.x - p1.x, p2.y - p1.y);
+
+            let len1 = (v1.x.powi(2) + v1.y.powi(2)).sqrt();
+            let len2 = (v2.x.powi(2) + v2.y.powi(2)).sqrt();
+
+            let a = det(&v1, &v2).atan2(dot(&v1, &v2)).to_degrees().rem_euclid(360.0);
+
+            //println!("p0:{p0:?} p1:{p1:?} p2:{p2:?} v1:{v1:?} v2:{v2:?} len1:{len1} len2:{len2} angle: {a}");
+
+            //convex
+            if a >= 180.0 {
+                let pa = point!(p1.x + (-offset * v1.x / len1), p1.y + (-offset * v1.y / len1));
+                let pb = point!(p2.x + (-offset * v2.x / len2), p2.y + (-offset * v2.y / len2));
+
+                let a_start = pa.y.atan2(pa.x).to_degrees().rem_euclid(360.0);
+                let a_end = pb.y.atan2(pb.x).to_degrees().rem_euclid(360.0);
+
+                println!("pa:{pa:?} pb:{pb:?} a_start:{a_start} a_end:{a_end}");
+
+                let mut arc_points = arc_to_lines(&p1, offset.abs(), a_end, a_start, 60);
+
+                arc_points.reverse();
+                points.append(&mut arc_points);
+            }
+            //concave
+            else {
+
+            }
+        }
+
+        Polyline{points: points, nest:None}
+    } 
 }
 
 /// splits arcs and circles into several line segments
@@ -208,10 +270,6 @@ fn line_intersect(l1: (&Point, &Point), l2: (&Point, &Point)) -> Option<Point> {
         a.x*b.y - a.y*b.x
     }
 
-    fn orient(a: &Point, b: &Point, c: &Point) -> f64 {
-        cross(&point!(b.x-a.x, b.y-a.y), &point!(a.x-c.x, a.y-c.y))
-    }
-
     let d1 = point!(l1.1.x-l1.0.x, l1.1.y-l1.0.y);
     let d2 = point!(l2.1.x-l2.0.x, l2.1.y-l2.0.y);
 
@@ -225,12 +283,5 @@ fn line_intersect(l1: (&Point, &Point), l2: (&Point, &Point)) -> Option<Point> {
     }
 
     None
-
-    // let oa = orient(l2.0, l2.1, l1.0);
-    // let ob = orient(l2.0, l2.1, l1.1);
-    // let oc = orient(l1.0, l1.1, l2.0);
-    // let od = orient(l1.0, l1.1, l2.1);
-
-    // oa*ob <= 0.0 && oc*od <= 0.0
 
 }

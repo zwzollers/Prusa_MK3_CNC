@@ -1,4 +1,3 @@
-use std::f64::{INFINITY, NEG_INFINITY};
 use dxf::{Point, point};
 use clap::Parser;
 
@@ -34,6 +33,9 @@ fn main() {
     let cu_polylines = Polylines::from_dxf(&cu_dxf);
     //println!("polylines: {cu_polylines:#?}");
 
+    let offset_cu = cu_polylines.shapes[1].offset(-5.0);
+    println!("{offset_cu:?} before: {} after:{}", cu_polylines.shapes[1].length(), offset_cu.length());
+
     let outline_dxf = DXF::from_file(args.outline);
     let outline_polylines = Polylines::from_dxf(&outline_dxf);
 
@@ -53,31 +55,34 @@ fn main() {
 
     gcode.push(Command::G1 { x: Some(0.0), y: Some(0.0), z: Some(2.0), f: Some(5000.0) });
 
-    for shape in &cu_polylines.shapes {
-        gcode.push_shape(shape, &offset);
-    }
+    gcode.push_shape(&offset_cu, &offset);
+    gcode.push_shape(&cu_polylines.shapes[1], &offset);
 
-    let mut line = (outline_polylines.aabb.0.clone(), point!(outline_polylines.aabb.0.x, outline_polylines.aabb.1.y));
+    // for shape in &cu_polylines.shapes {
+    //     gcode.push_shape(shape, &offset);
+    // }
 
-    let tool_diameter = 1.5875;
+    // let mut line = (outline_polylines.aabb.0.clone(), point!(outline_polylines.aabb.0.x, outline_polylines.aabb.1.y));
 
-    let lines = ((outline_polylines.aabb.1.x - outline_polylines.aabb.0.x) / tool_diameter).ceil() as usize;
+    // let tool_diameter = 1.5875;
+
+    // let lines = ((outline_polylines.aabb.1.x - outline_polylines.aabb.0.x) / tool_diameter).ceil() as usize;
 
 
-    for i in 0..lines {
+    // for _ in 0..lines {
 
-        let mut intersections = cu_polylines.find_intersections((&line.0, &line.1));
-        intersections.append(&mut outline_polylines.find_intersections((&line.0, &line.1)));
+    //     let mut intersections = cu_polylines.find_intersections((&line.0, &line.1));
+    //     intersections.append(&mut outline_polylines.find_intersections((&line.0, &line.1)));
 
-        intersections.sort_by(|a,b| a.y.partial_cmp(&b.y).unwrap());
+    //     intersections.sort_by(|a,b| a.y.partial_cmp(&b.y).unwrap());
 
-        for line in intersections.chunks_exact(2) {
-            gcode.push_line((&line[0], &line[1]), &offset);
-        }
+    //     for line in intersections.chunks_exact(2) {
+    //         gcode.push_line((&line[0], &line[1]), &offset);
+    //     }
 
-        line.0.x += tool_diameter;
-        line.1.x += tool_diameter;
-    }
+    //     line.0.x += tool_diameter;
+    //     line.1.x += tool_diameter;
+    // }
 
     gcode.push(Command::G1 { x: None, y: None, z: Some(50.0), f: Some(10000.0) });
 

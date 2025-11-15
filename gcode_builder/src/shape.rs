@@ -55,9 +55,6 @@ impl DXF {
         dxf
     }
 
-    pub fn num_shapes(&self) -> usize {
-        self.shapes.len()
-    }
 }
 
 #[derive(Debug)]
