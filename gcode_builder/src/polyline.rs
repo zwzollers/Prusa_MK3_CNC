@@ -209,8 +209,8 @@ impl Polyline {
 
             //convex
             if a >= 180.0 {
-                let pa = point!(p1.x + (-offset * v1.x / len1), p1.y + (-offset * v1.y / len1));
-                let pb = point!(p2.x + (-offset * v2.x / len2), p2.y + (-offset * v2.y / len2));
+                let pa = point!(p1.x + (-offset * v1.y / len1), p1.y + (offset * v1.x / len1));
+                let pb = point!(p2.x + (offset * v2.y / len2), p2.y + (-offset * v2.x / len2));
 
                 let a_start = pa.y.atan2(pa.x).to_degrees().rem_euclid(360.0);
                 let a_end = pb.y.atan2(pb.x).to_degrees().rem_euclid(360.0);
